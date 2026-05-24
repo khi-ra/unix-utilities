@@ -18,7 +18,7 @@ ssize_t get_input(char* buf) {
    * gdb shows read bytes stored in buf[] and n = 0
    */
   // attempt to read MAXINPUT chars at from standard input
-  if ((n = read(STDIN_FILENO, buf, MAXINPUT) == -1)) {
+  if ((n = read(STDIN_FILENO, buf, 1) == -1)) {
     perror("read failed");
     return n;
   }
@@ -38,7 +38,7 @@ ssize_t get_input(char* buf) {
     return -1;
   }
 
-  buf[n] = '\0';
+  buf[2] = '\0';
   return n;
 }
 
@@ -48,6 +48,6 @@ int main() {
 
   /* !issue1 */
   while ((n = get_input(buf)) > 0) {
-    write(STDIN_FILENO, buf, n);
+    write(STDIN_FILENO, buf, 1);
   }
 }
