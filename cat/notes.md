@@ -4,7 +4,7 @@
 - incorporate error-handling from day one to build the habit
   - look into perror and strerror(errno)
 - compile with everything on: gcc -Wall -Wextra -Wpedantic -fsanitisze=address,undefined -g
-  - the sanitizers catch buffer overruns and use-after-frees
+  - 'address' catches memory errors and 'undefined' catches code resulting in undefined behaviour
 - use gdb for debugging; learn basics of it
 - implement flags too: -n,-e,-s, etc;
   - look into getopt
