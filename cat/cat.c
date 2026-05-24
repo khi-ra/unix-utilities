@@ -2,8 +2,8 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <stdio.h>
-//#include<errno.h>
-#define MAXINPUT 10
+//#include <errno.h>
+#define MAXINPUT 11
 
 ssize_t get_input(char *buf);
 
@@ -11,6 +11,13 @@ ssize_t get_input(char* buf) {
   ssize_t n = -1;
   int max_input_exceeded = 0; // flag to set if MAXINPUT is exceeded
 
+  /* !issue1:
+   * read() returns 0 (EOF) instead # bytes read,
+   * can't null-terminate buf,
+   * calling function can't use 'n' to read bytes,
+   * gdb shows read bytes stored in buf[] and n = 0
+   */
+  // attempt to read MAXINPUT chars at from standard input
   if ((n = read(STDIN_FILENO, buf, MAXINPUT) == -1)) {
     perror("read failed");
     return n;
@@ -31,11 +38,7 @@ ssize_t get_input(char* buf) {
     return -1;
   }
 
-  /* the issue is here somewhere. if i dont -1 it throws buffer overflow.
-   * for now its throwing memory leak sanitizer issue on gdb.
-   * running it normally it doesn't do anything.
-   */
-  buf[MAXINPUT-1] = '\0';
+  buf[n] = '\0';
   return n;
 }
 
@@ -43,6 +46,7 @@ int main() {
   char buf[MAXINPUT] = "";
   ssize_t n;
 
+  /* !issue1 */
   while ((n = get_input(buf)) > 0) {
     write(STDIN_FILENO, buf, n);
   }
