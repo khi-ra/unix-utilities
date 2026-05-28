@@ -12,6 +12,17 @@
 # Project Notes 
 - trying to change the file position on a file that doesn't support random access results in an ESPIPE error
 - if the '-' operand is used multiple times and stdin is regular file, the output after the first is just 'null'
+- used `cat` on mp4 and dmg files, seems like it prints out the raw sequence of bytes of a file
+- if stdout is a regular file and is the same as any file operand, this can be treated as an error
+- when taking stdin, it should only stop once ctrl+d is pressed
+## Usage:
+1. user runs executable with filename as argument
+2. program parses input and opens file
+3. if file exists: 
+   - reads raw file-bytes into buffer
+   - write content from buffer to stdout
+4. otherwise:  
+   - print error to sderr
 
 # Additional learning resources
 1. Advanced Programming in the Unix Environment by Richard Stevens
