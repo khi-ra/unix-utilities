@@ -9,14 +9,13 @@ ssize_t get_input(char *input_buf);
 ssize_t get_input(char *input_buf) {
   ssize_t n = -1;
 
-
   // read MAXINPUT chars from stdin and store in buffer
   if ((n = read(STDIN_FILENO, input_buf, MAXINPUT)) == -1) {
     perror("read failed");
     return n;
   }
 
-  // null terminate buffer
+  // removing trailing '\n' and null terminate buffer
   input_buf[n] = 0;
   input_buf[strcspn(input_buf, "\n")] = 0;
   return n;
