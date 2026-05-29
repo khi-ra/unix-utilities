@@ -46,32 +46,42 @@ int read_file(char *path, char *error_buffer)
   int nbytes_read;
   int absolute_path = path[0] == '/';
 
-  /* Implement Custom Errors in read_file():
+  /* Custom Errors in read_file():
      read_file() writes error messages into an 'error buffer' passed in by main.
      If read_file() returns -1 for error, the caller should check this buffer
      for specific information about the error. */
 
   /* refactor file opening logic into open_file() method */
-  /* refactor regular-file-check into is_regular_file() method */
+  /* refactor regular-file check logic into is_regular_file() method */
   if (absolute_path)
   {
-    if ((fd = open(path, O_RDONLY)) == -1 || stat(path, &file_info) == -1)
-    { // handle file opening/checking error
-      copy_string("file-open/check error", error_buffer);
+    if ((fd = open(path, O_RDONLY)) == -1)
+    { // handle file opening error
+      copy_string("file cannot be opened", error_buffer);
       return -1;
     }
+    else if (stat(path, &file_info) == -1)
+    { // handle file checking error
+      copy_string("file cannot be accessed", error_buffer);
+    }
     else if (S_ISDIR(file_info.st_mode))
-    { // if its a directory, throw custom error
-      copy_string("directory error", error_buffer);
+    { // handle directory as input error
+      copy_string("is a directory", error_buffer);
       return -1;
     }
     else if (S_ISREG(file_info.st_mode))
     { // if it's a regular file, read file-stream into file_data buffer
       if ((nbytes_read = read(fd, file_data, MAXINPUT)) == -1)
       {
-        copy_string("file-read error", error_buffer);
+        copy_string("file cannot be read", error_buffer);
+        return -1;
       }
       return nbytes_read;
+    }
+    else
+    {
+      copy_string("invalid file type", error_buffer);
+      return -1;
     }
   }
   else
