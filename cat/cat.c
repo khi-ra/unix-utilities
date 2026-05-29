@@ -5,11 +5,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define MAXINPUT 1024
+#define MAXFILEDATA 1024
+#define MAXINPUT 256
 #define MAXERROR 256
 
 ssize_t read_input(char *input_buffer);
-int read_file(char *path, char *error_buffer);
+int read_file(char *path, char *file_data, char *error_buffer);
 void copy_string(char *in, char *out);
 
 /* copies contents of IN into OUT */
@@ -38,18 +39,17 @@ ssize_t read_input(char *input_buffer)
   return n;
 }
 
-int read_file(char *path, char *error_buffer)
+int read_file(char *path, char *file_data, char *error_buffer)
 {
-  char file_data[MAXINPUT];
   struct stat file_info;
   int fd;
   int nbytes_read;
   int absolute_path = path[0] == '/';
 
   /* Custom Errors in read_file():
-     read_file() writes error messages into an 'error buffer' passed in by main.
-     If read_file() returns -1 for error, the caller should check this buffer
-     for specific information about the error. */
+     read_file() writes error messages into an 'error buffer' passed in by
+     main(). If read_file() returns -1 (to indicate error), main() shall check
+     this buffer for specific information about the error. */
 
   /* refactor file opening logic into open_file() method */
   /* refactor regular-file check logic into is_regular_file() method */
@@ -63,6 +63,7 @@ int read_file(char *path, char *error_buffer)
     else if (stat(path, &file_info) == -1)
     { // handle file checking error
       copy_string("file cannot be accessed", error_buffer);
+      return -1;
     }
     else if (S_ISDIR(file_info.st_mode))
     { // handle directory as input error
@@ -71,7 +72,7 @@ int read_file(char *path, char *error_buffer)
     }
     else if (S_ISREG(file_info.st_mode))
     { // if it's a regular file, read file-stream into file_data buffer
-      if ((nbytes_read = read(fd, file_data, MAXINPUT)) == -1)
+      if ((nbytes_read = read(fd, file_data, MAXFILEDATA)) == -1)
       {
         copy_string("file cannot be read", error_buffer);
         return -1;
@@ -97,13 +98,16 @@ int main(int argc, char **argv)
   // +1 for null termination character
   char input_buffer[MAXINPUT + 1];
   char *error_buffer = malloc(MAXERROR + 1);
-  int n;
-  int fd;
+  char file_data[MAXFILEDATA];
+  int input_size;
+  int file_size;
 
-  if ((n = read_input(input_buffer)) > 0 &&
-      (fd = read_file(input_buffer, error_buffer)) > 0)
+  if ((input_size = read_input(input_buffer)) > 0 &&
+      (file_size = read_file(input_buffer, file_data, error_buffer)) > 0)
   {
-    printf("path: %s, fd: %d\n", input_buffer, n);
+    printf("input path: %s\n-----------\n", input_buffer);
+    printf("file size: %d\n-----------\n", file_size);
+    printf("file data: %s\n", file_data);
   }
 
   free(error_buffer);
