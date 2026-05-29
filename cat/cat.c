@@ -17,8 +17,10 @@ void copy_string(char *in, char *out);
 void copy_string(char *in, char *out)
 {
   int i = 0;
-  while (*(in + i) != '\0')
+  while (*(in + i) != '\0') {
     *(out + i) = *(in + i);
+    i++;
+  }
 }
 
 /* Read input from stdin and store it in INPUT_BUFFER.
@@ -44,7 +46,7 @@ int read_file(char *path, char *file_data, char *error_buffer)
   struct stat file_info;
   int fd;
   int nbytes_read;
-  int absolute_path = path[0] == '/';
+  int is_absolute_path = path[0] == '/';
 
   /* Custom Errors in read_file():
      read_file() writes error messages into an 'error buffer' passed in by
@@ -53,7 +55,7 @@ int read_file(char *path, char *file_data, char *error_buffer)
 
   /* refactor file opening logic into open_file() method */
   /* refactor regular-file check logic into is_regular_file() method */
-  if (absolute_path)
+  if (is_absolute_path)
   {
     if ((fd = open(path, O_RDONLY)) == -1)
     { // handle file opening error
