@@ -19,9 +19,8 @@ struct file_struct
 ssize_t read_input(char *input_buffer, struct file_struct *file);
 int read_file(struct file_struct *file, char *error_buffer);
 int is_regular_file(struct file_struct *file, char *error_buffer);
-int open_file();
+int open_file(struct file_struct *file);
 void copy_string(char *in, char *out);
-int string_length(char *string);
 
 int main(int argc, char **argv)
 {
@@ -67,7 +66,7 @@ ssize_t read_input(char *input_buffer, struct file_struct *file)
   return nbytes;
 }
 
-/* Read file at FILE->path and stores content into FILE->content.
+/* Read file at FILE->path and store it's content into FILE->content.
    Return number of bytes read, or -1 for error.
 
    Custom Errors: Writes error messages into ERROR_BUFFER passed in
@@ -79,21 +78,20 @@ int read_file(struct file_struct *file, char *error_buffer)
   int dir_fd;
   int nbytes_read = -1;
 
-  // if path is absolute, 'dir_fd' is ignored and only the path is used
-  if ((dir_fd = open("./", O_RDONLY)) == -1 ||
-      (file->fd = openat(dir_fd, file->path, O_RDONLY)) == -1)
+  if ((file->fd = open_file(file)) == -1)
   {
-    perror("File cannot be opened");
+    copy_string("File cannot be opened", error_buffer);
   }
 
-  if (is_regular_file(file, error_buffer))
+  if (!is_regular_file(file, error_buffer))
   {
-    if ((nbytes_read = read(file->fd, file->file_content, MAXFILEDATA)) == -1)
-    {
-      perror("File cannot be read");
-    }
+    return nbytes_read;
   }
 
+  if ((nbytes_read = read(file->fd, file->file_content, MAXFILEDATA)) == -1)
+  {
+    copy_string("File cannot be read", error_buffer);
+  }
   return nbytes_read;
 }
 
@@ -122,6 +120,20 @@ int is_regular_file(struct file_struct *file, char *error_buffer)
     copy_string("Invalid file type", error_buffer);
   }
   return is_reg_file;
+}
+
+int open_file(struct file_struct *file)
+{
+  int dir_fd;
+
+  // if path is absolute, 'dir_fd' is ignored and only the path is used
+  if ((dir_fd = open("./", O_RDONLY)) == -1 ||
+      (file->fd = openat(dir_fd, file->path, O_RDONLY)) == -1)
+  {
+    return -1;
+  }
+
+  return file->fd;
 }
 
 /* Copy contents of IN into OUT. */

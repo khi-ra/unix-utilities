@@ -1,4 +1,5 @@
 # Pre-project/Research
+
 - read POSIX spec for own implementation
 - use low level syscalls from unistd.h instead of stdio.h; more hands-on
 - incorporate error-handling from day one to build the habit
@@ -9,24 +10,31 @@
 - implement flags too: -n,-e,-s, etc;
   - look into getopt
 
-# Project Notes 
+# Project Notes
+
 - trying to change the file position on a file that doesn't support random access results in an ESPIPE error
 - if the '-' operand is used multiple times and stdin is regular file, the output after the first is just 'null'
 - used `cat` on mp4 and dmg files, seems like it prints out the raw sequence of bytes of a file
 - if stdout is a regular file and is the same as any file operand, this can be treated as an error
 - when taking stdin, it should only stop once ctrl+d is pressed
+- i should separate input to allow multiple files as input; might to parse input char-by-char
+  and separate with spaces
+
 ## Usage:
+
 1. user runs executable with filename as argument
 2. program parses input and opens file
-3. if file exists: 
+3. if file exists:
    - reads raw file-bytes into buffer
    - write content from buffer to stdout
-4. otherwise:  
+4. otherwise:
    - print error to sderr
 
 # Additional learning resources
+
 1. Advanced Programming in the Unix Environment by Richard Stevens
    - has a chapter on standard I/O and one on files and directories
 2. The Linux Programming Interface by Michael Kerrisk
    - more modern and linux-specific
+
 Don't need to read these cover to cover, just dip in when needed.
