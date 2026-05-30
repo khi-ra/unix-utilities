@@ -12,11 +12,11 @@
 struct file_struct
 {
   int fd;
-  char *file_content;
+  char content[MAXFILEDATA];
   char *path;
 };
 
-ssize_t read_input(char *input_buffer, struct file_struct *file);
+ssize_t read_input(struct file_struct *file);
 int read_file(struct file_struct *file, char *error_buffer);
 int is_regular_file(struct file_struct *file, char *error_buffer);
 int open_file(struct file_struct *file);
@@ -26,42 +26,43 @@ int main(int argc, char **argv)
 {
   struct file_struct file;
   // +1 for null termination character
-  char input_buffer[MAXINPUT + 1];
+  file.path = malloc(MAXINPUT + 1);
   char *error_buffer = malloc(MAXERROR + 1);
-  char file_data[MAXFILEDATA];
   int input_size;
   int file_size;
 
-  if ((input_size = read_input(input_buffer, &file)) > 0 &&
+  if ((input_size = read_input(&file)) > 0 &&
       (file_size = read_file(&file, error_buffer)) > 0)
   {
-
-    printf("input path: %s\n-----------\n", input_buffer);
+    printf("input path: %s\n-----------\n", file.path);
     printf("file size: %d\n-----------\n", file_size);
-    printf("file data: %s\n", file_data);
+    printf("file content: %s\n", file.content);
+  }
+  else
+  {
+    printf("Error: %s\n", error_buffer);
   }
 
   free(error_buffer);
+  free(file.path);
 }
 
-/* Read input from stdin and store it in INPUT_BUFFER.
+/* Read input from stdin and store it in FILE->path.
    Return the number of bytes read or -1 for error. */
-ssize_t read_input(char *input_buffer, struct file_struct *file)
+ssize_t read_input(struct file_struct *file)
 {
   ssize_t nbytes = -1;
 
   // read MAXINPUT chars from stdin and store in buffer
-  if ((nbytes = read(STDIN_FILENO, input_buffer, MAXINPUT)) == -1)
+  if ((nbytes = read(STDIN_FILENO, file->path, MAXINPUT)) == -1)
   {
     perror("read failed");
     return -1;
   }
 
   // strip trailing '\n' and null terminate buffer
-  input_buffer[strcspn(input_buffer, "\n")] = 0;
-
-  file->path = malloc(nbytes);
-  file->path = input_buffer;
+  *(file->path + (strcspn(file->path, "\n"))) = 0;
+  file->path = realloc(file->path, nbytes);
 
   return nbytes;
 }
@@ -69,28 +70,34 @@ ssize_t read_input(char *input_buffer, struct file_struct *file)
 /* Read file at FILE->path and store it's content into FILE->content.
    Return number of bytes read, or -1 for error.
 
-   Custom Errors: Writes error messages into ERROR_BUFFER passed in
-   by the calling function. If read_file() returns -1, the caller shall
+   Custom Errors: read_file() writes an error message into ERROR_BUFFER passed
+   in by the calling function. If read_file() returns -1, the caller should
    check this buffer for specific information about the error.
  */
 int read_file(struct file_struct *file, char *error_buffer)
 {
-  int dir_fd;
-  int nbytes_read = -1;
+  int nbytes_read;
 
   if ((file->fd = open_file(file)) == -1)
   {
     copy_string("File cannot be opened", error_buffer);
+    return -1;
   }
 
   if (!is_regular_file(file, error_buffer))
   {
-    return nbytes_read;
+    return -1;
   }
 
-  if ((nbytes_read = read(file->fd, file->file_content, MAXFILEDATA)) == -1)
+  if ((nbytes_read = read(file->fd, file->content, MAXFILEDATA)) == -1)
   {
     copy_string("File cannot be read", error_buffer);
+    return -1;
+  }
+  else if (nbytes_read < MAXFILEDATA)
+  {
+    // null terminate file content buffer
+    file->content[nbytes_read] = 0;
   }
   return nbytes_read;
 }
@@ -102,18 +109,20 @@ int is_regular_file(struct file_struct *file, char *error_buffer)
   struct stat file_stat_info;
   int is_reg_file = 0;
 
-  // retrieve file stat info and in struct file_stat_info
+  // retrieve file stat info and store it in struct file_stat_info
   if (stat(file->path, &file_stat_info) == -1)
   {
     copy_string("File cannot be accessed", error_buffer);
+    return is_reg_file;
+  }
+
+  if (S_ISREG(file_stat_info.st_mode))
+  {
+    is_reg_file = 1;
   }
   else if (S_ISDIR(file_stat_info.st_mode))
   {
     copy_string("Is a directory", error_buffer);
-  }
-  else if (S_ISREG(file_stat_info.st_mode))
-  {
-    is_reg_file = 1;
   }
   else
   {
@@ -122,17 +131,18 @@ int is_regular_file(struct file_struct *file, char *error_buffer)
   return is_reg_file;
 }
 
+/* Open file in read-only mode and return it's file descriptor, or -1 for
+   error. */
 int open_file(struct file_struct *file)
 {
-  int dir_fd;
+  int dir_fd = open("./", O_RDONLY);
 
   // if path is absolute, 'dir_fd' is ignored and only the path is used
-  if ((dir_fd = open("./", O_RDONLY)) == -1 ||
-      (file->fd = openat(dir_fd, file->path, O_RDONLY)) == -1)
+  if (dir_fd == -1 || (file->fd = openat(dir_fd, file->path, O_RDONLY)) == -1)
   {
     return -1;
   }
-
+  close(dir_fd);
   return file->fd;
 }
 
