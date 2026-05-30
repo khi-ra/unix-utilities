@@ -22,6 +22,12 @@ int is_regular_file(struct file_struct *file, char *error_buffer);
 int open_file(struct file_struct *file);
 void copy_string(char *in, char *out);
 
+/* Custom Error messages: Any function that takes ERROR_BUFFER as an arg writes
+   an error message into it. If said function then returns -1, the caller should
+   check this buffer for specific information about the error. */
+
+/* Accept files as command-line input and display their content out to standard
+   output. */
 int main(int argc, char **argv)
 {
   struct file_struct file;
@@ -67,13 +73,9 @@ ssize_t read_input(struct file_struct *file)
   return nbytes;
 }
 
-/* Read file at FILE->path and store it's content into FILE->content.
-   Return number of bytes read, or -1 for error.
-
-   Custom Errors: read_file() writes an error message into ERROR_BUFFER passed
-   in by the calling function. If read_file() returns -1, the caller should
-   check this buffer for specific information about the error.
- */
+/* Read file at FILE->path and store it's content into FILE->content. Upon
+   error, return -1 and write error message into ERROR_BUFFER.
+   Otherwise return number of bytes read. */
 int read_file(struct file_struct *file, char *error_buffer)
 {
   int nbytes_read;
@@ -103,13 +105,13 @@ int read_file(struct file_struct *file, char *error_buffer)
 }
 
 /* Check if file at PATH is a regular file. If false, return 0 and
-   write error message into ERROR_BUFFER. Otherwise return 1 */
+   write error message into ERROR_BUFFER. Otherwise return 1. */
 int is_regular_file(struct file_struct *file, char *error_buffer)
 {
   struct stat file_stat_info;
   int is_reg_file = 0;
 
-  // retrieve file stat info and store it in struct file_stat_info
+  // retrieve file attributes using stat() and store it in struct file_stat_info
   if (stat(file->path, &file_stat_info) == -1)
   {
     copy_string("File cannot be accessed", error_buffer);
@@ -142,6 +144,7 @@ int open_file(struct file_struct *file)
   {
     return -1;
   }
+
   close(dir_fd);
   return file->fd;
 }
@@ -155,5 +158,6 @@ void copy_string(char *in, char *out)
     *(out + i) = *(in + i);
     i++;
   }
-  *(out + i) = '\0';
+  // null terminate 'out'
+  *(out + i) = 0;
 }
