@@ -9,94 +9,23 @@
 #define MAXINPUT 256
 #define MAXERROR 256
 
-ssize_t read_input(char *input_buffer);
-int read_file(char *path, char *file_data, char *error_buffer);
-void copy_string(char *in, char *out);
-
-/* copies contents of IN into OUT */
-void copy_string(char *in, char *out)
+struct file_struct
 {
-  int i = 0;
-  while (*(in + i) != '\0') {
-    *(out + i) = *(in + i);
-    i++;
-  }
-}
-
-/* Read input from stdin and store it in INPUT_BUFFER.
-   Return the number of bytes read or -1 for error. */
-ssize_t read_input(char *input_buffer)
-{
-  ssize_t n = -1;
-
-  // read MAXINPUT chars from stdin and store in buffer
-  if ((n = read(STDIN_FILENO, input_buffer, MAXINPUT)) == -1)
-  {
-    perror("read failed");
-    return n;
-  }
-
-  // strip trailing '\n' and null terminate buffer
-  input_buffer[strcspn(input_buffer, "\n")] = 0;
-  return n;
-}
-
-int read_file(char *path, char *file_data, char *error_buffer)
-{
-  struct stat file_info;
   int fd;
-  int nbytes_read;
-  int is_absolute_path = path[0] == '/';
+  char *file_content;
+  char *path;
+};
 
-  /* Custom Errors in read_file():
-     read_file() writes error messages into an 'error buffer' passed in by
-     main(). If read_file() returns -1 (to indicate error), main() shall check
-     this buffer for specific information about the error. */
-
-  /* refactor file opening logic into open_file() method */
-  /* refactor regular-file check logic into is_regular_file() method */
-  if (is_absolute_path)
-  {
-    if ((fd = open(path, O_RDONLY)) == -1)
-    { // handle file opening error
-      copy_string("file cannot be opened", error_buffer);
-      return -1;
-    }
-    else if (stat(path, &file_info) == -1)
-    { // handle file checking error
-      copy_string("file cannot be accessed", error_buffer);
-      return -1;
-    }
-    else if (S_ISDIR(file_info.st_mode))
-    { // handle directory as input error
-      copy_string("is a directory", error_buffer);
-      return -1;
-    }
-    else if (S_ISREG(file_info.st_mode))
-    { // if it's a regular file, read file-stream into file_data buffer
-      if ((nbytes_read = read(fd, file_data, MAXFILEDATA)) == -1)
-      {
-        copy_string("file cannot be read", error_buffer);
-        return -1;
-      }
-      return nbytes_read;
-    }
-    else
-    {
-      copy_string("invalid file type", error_buffer);
-      return -1;
-    }
-  }
-  else
-  { // if relative path, get working dir's fd and pass into openat()
-    int working_dir_fd = open("./", O_RDONLY);
-    fd = openat(working_dir_fd, path, O_RDONLY);
-  }
-  return fd;
-}
+ssize_t read_input(char *input_buffer, struct file_struct *file);
+int read_file(struct file_struct *file, char *error_buffer);
+int is_regular_file(struct file_struct *file, char *error_buffer);
+int open_file();
+void copy_string(char *in, char *out);
+int string_length(char *string);
 
 int main(int argc, char **argv)
 {
+  struct file_struct file;
   // +1 for null termination character
   char input_buffer[MAXINPUT + 1];
   char *error_buffer = malloc(MAXERROR + 1);
@@ -104,13 +33,105 @@ int main(int argc, char **argv)
   int input_size;
   int file_size;
 
-  if ((input_size = read_input(input_buffer)) > 0 &&
-      (file_size = read_file(input_buffer, file_data, error_buffer)) > 0)
+  if ((input_size = read_input(input_buffer, &file)) > 0 &&
+      (file_size = read_file(&file, error_buffer)) > 0)
   {
+
     printf("input path: %s\n-----------\n", input_buffer);
     printf("file size: %d\n-----------\n", file_size);
     printf("file data: %s\n", file_data);
   }
 
   free(error_buffer);
+}
+
+/* Read input from stdin and store it in INPUT_BUFFER.
+   Return the number of bytes read or -1 for error. */
+ssize_t read_input(char *input_buffer, struct file_struct *file)
+{
+  ssize_t nbytes = -1;
+
+  // read MAXINPUT chars from stdin and store in buffer
+  if ((nbytes = read(STDIN_FILENO, input_buffer, MAXINPUT)) == -1)
+  {
+    perror("read failed");
+    return -1;
+  }
+
+  // strip trailing '\n' and null terminate buffer
+  input_buffer[strcspn(input_buffer, "\n")] = 0;
+
+  file->path = malloc(nbytes);
+  file->path = input_buffer;
+
+  return nbytes;
+}
+
+/* Read file at FILE->path and stores content into FILE->content.
+   Return number of bytes read, or -1 for error.
+
+   Custom Errors: Writes error messages into ERROR_BUFFER passed in
+   by the calling function. If read_file() returns -1, the caller shall
+   check this buffer for specific information about the error.
+ */
+int read_file(struct file_struct *file, char *error_buffer)
+{
+  int dir_fd;
+  int nbytes_read = -1;
+
+  // if path is absolute, 'dir_fd' is ignored and only the path is used
+  if ((dir_fd = open("./", O_RDONLY)) == -1 ||
+      (file->fd = openat(dir_fd, file->path, O_RDONLY)) == -1)
+  {
+    perror("File cannot be opened");
+  }
+
+  if (is_regular_file(file, error_buffer))
+  {
+    if ((nbytes_read = read(file->fd, file->file_content, MAXFILEDATA)) == -1)
+    {
+      perror("File cannot be read");
+    }
+  }
+
+  return nbytes_read;
+}
+
+/* Check if file at PATH is a regular file. If false, return 0 and
+   write error message into ERROR_BUFFER. Otherwise return 1 */
+int is_regular_file(struct file_struct *file, char *error_buffer)
+{
+  struct stat file_stat_info;
+  int is_reg_file = 0;
+
+  // retrieve file stat info and in struct file_stat_info
+  if (stat(file->path, &file_stat_info) == -1)
+  {
+    copy_string("File cannot be accessed", error_buffer);
+  }
+  else if (S_ISDIR(file_stat_info.st_mode))
+  {
+    copy_string("Is a directory", error_buffer);
+  }
+  else if (S_ISREG(file_stat_info.st_mode))
+  {
+    is_reg_file = 1;
+  }
+  else
+  {
+    copy_string("Invalid file type", error_buffer);
+  }
+  return is_reg_file;
+}
+
+/* Copy contents of IN into OUT. */
+void copy_string(char *in, char *out)
+{
+  int i = 0;
+  while (*(in + i) != '\0')
+  {
+    *(out + i) = *(in + i);
+    i++;
+  }
+  *(out + i) = '\0';
 }
