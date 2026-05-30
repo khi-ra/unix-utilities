@@ -21,7 +21,7 @@ The `-g` flag is only necessary if debugging with gdb.
 
 ## Executing
 
-The program can be executed with:
+The executable can be run with:
 
 ```bash
 ./cat.out
