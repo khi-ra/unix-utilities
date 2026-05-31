@@ -17,8 +17,9 @@
 - used `cat` on mp4 and dmg files, seems like it prints out the raw sequence of bytes of a file
 - if stdout is a regular file and is the same as any file operand, this can be treated as an error
 - when taking stdin, it should only stop once ctrl+d is pressed
-- i should separate input to allow multiple files as input; might to parse input char-by-char
-  and separate with spaces
+- i should separate input by empty space to allow multiple files as input; might have to parse input char-by-char
+  - i could use threads to read multiple files simultaneously, then print them one at a time in sequential order
+  - may have to dynamically allocate memory for file content to fit entire large files into one buffer
 
 ## Usage:
 
