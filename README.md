@@ -37,3 +37,4 @@ These features are currently not supported:
 
 - Command-line arguments/input
 - Multiple files at once as input
+- Reading from standard input if no file operand is specified or file operand is `-`
