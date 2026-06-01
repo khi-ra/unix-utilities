@@ -12,15 +12,16 @@
 struct file_struct
 {
   int fd;
-  char content[MAXFILEDATA];
+  char *content;
   char *path;
+  int size;
 };
 
 ssize_t read_input(struct file_struct *file);
 int read_file(struct file_struct *file, char *error_buffer);
 int is_regular_file(struct file_struct *file, char *error_buffer);
 int open_file(struct file_struct *file);
-void copy_string(char *in, char *out);
+void copy_string(char *in, char *out); /* look into strcpy */
 
 /* Custom Error messages: Any function that takes ERROR_BUFFER as an arg writes
    an error message into it. If said function then returns -1, the caller should
@@ -31,11 +32,13 @@ void copy_string(char *in, char *out);
 int main(int argc, char **argv)
 {
   struct file_struct file;
-  // +1 for null termination character
-  file.path = malloc(MAXINPUT + 1);
-  char *error_buffer = malloc(MAXERROR + 1);
   int input_size;
   int file_size;
+  // +1 for null termination
+  char *error_buffer = malloc(MAXERROR + 1);
+  file.path = malloc(MAXINPUT + 1);
+  file.content = malloc(MAXFILEDATA + 1);
+  file.size = 0;
 
   if ((input_size = read_input(&file)) > 0 &&
       (file_size = read_file(&file, error_buffer)) > 0)
@@ -51,6 +54,7 @@ int main(int argc, char **argv)
 
   free(error_buffer);
   free(file.path);
+  free(file.content);
 }
 
 /* Read input from stdin and store it in FILE->path.
@@ -67,7 +71,8 @@ ssize_t read_input(struct file_struct *file)
   }
 
   // strip trailing '\n' and null terminate buffer
-  *(file->path + (strcspn(file->path, "\n"))) = 0;
+  int path_length = strcspn(file->path, "\n");
+  *(file->path + path_length) = 0;
   file->path = realloc(file->path, nbytes);
 
   return nbytes;
@@ -78,6 +83,7 @@ ssize_t read_input(struct file_struct *file)
    Otherwise return number of bytes read. */
 int read_file(struct file_struct *file, char *error_buffer)
 {
+  char file_content_buffer[MAXFILEDATA + 1];
   int nbytes_read;
 
   if ((file->fd = open_file(file)) == -1)
@@ -91,16 +97,36 @@ int read_file(struct file_struct *file, char *error_buffer)
     return -1;
   }
 
-  if ((nbytes_read = read(file->fd, file->content, MAXFILEDATA)) == -1)
+  if ((nbytes_read = read(file->fd, file_content_buffer, MAXFILEDATA)) == -1)
   {
     copy_string("File cannot be read", error_buffer);
     return -1;
   }
-  else if (nbytes_read < MAXFILEDATA)
+  file->size += nbytes_read;
+
+  /* For copying large blocks of data use memcpy()/strcpy() instead of
+     copy_string(), it's much more efficient: memcpy(*to, *from, sizeof(*from))
+
+     However these functions are not safe, need to ensure certain criteria are
+     met before using them. */
+  if (file->size < MAXFILEDATA)
   {
-    // null terminate file content buffer
-    file->content[nbytes_read] = 0;
+    // copy buffer content to file and free empty space
+    copy_string(file_content_buffer, file->content);
+    file->content = realloc(file->content, file->size);
   }
+  else if (nbytes_read == MAXFILEDATA &&
+           ((int)file_content_buffer[nbytes_read]) != EOF)
+  {
+    int temp = MAXFILEDATA;
+    copy_string(file_content_buffer, file->content);
+    // allocate an additional MAXFILEDATA bytes
+    file->content = realloc(file->content, file->size + MAXFILEDATA);
+    nbytes_read = read(file->fd, file_content_buffer, MAXFILEDATA);
+    file->size += nbytes_read;
+  }
+  *(file->content + file->size) = 0;
+
   return nbytes_read;
 }
 
