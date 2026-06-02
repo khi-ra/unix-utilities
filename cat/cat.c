@@ -14,14 +14,14 @@ struct file_struct
   int fd;
   char *content;
   char *path;
-  int size;
+  size_t size;
 };
 
 ssize_t read_input(struct file_struct *file);
 int read_file(struct file_struct *file, char *error_buffer);
 int is_regular_file(struct file_struct *file, char *error_buffer);
 int open_file(struct file_struct *file);
-void copy_string(char *in, char *out); /* look into strcpy */
+void copy_string(char **out, char *in, size_t nbytes);
 
 /* Custom Error messages: Any function that takes ERROR_BUFFER as an arg writes
    an error message into it. If said function then returns -1, the caller should
@@ -34,10 +34,12 @@ int main(int argc, char **argv)
   struct file_struct file;
   int input_size;
   int file_size;
+
   // +1 for null termination
+  /* set all pointers to NULL and realloc when writing to them */
   char *error_buffer = malloc(MAXERROR + 1);
-  file.path = malloc(MAXINPUT + 1);
-  file.content = malloc(MAXFILEDATA + 1);
+  file.path = NULL;
+  file.content = NULL;
   file.size = 0;
 
   if ((input_size = read_input(&file)) > 0 &&
@@ -67,13 +69,14 @@ ssize_t read_input(struct file_struct *file)
   if ((nbytes = read(STDIN_FILENO, file->path, MAXINPUT)) == -1)
   {
     perror("read failed");
-    return -1;
+    return nbytes;
   }
+
+  file->path = realloc(file->path, nbytes);
 
   // strip trailing '\n' and null terminate buffer
   int path_length = strcspn(file->path, "\n");
   *(file->path + path_length) = 0;
-  file->path = realloc(file->path, nbytes);
 
   return nbytes;
 }
@@ -83,12 +86,13 @@ ssize_t read_input(struct file_struct *file)
    Otherwise return number of bytes read. */
 int read_file(struct file_struct *file, char *error_buffer)
 {
-  char file_content_buffer[MAXFILEDATA + 1];
+  char content_buffer[MAXFILEDATA + 1];
   int nbytes_read;
 
   if ((file->fd = open_file(file)) == -1)
   {
-    copy_string("File cannot be opened", error_buffer);
+    copy_string("File cannot be opened", error_buffer,
+                sizeof("File cannot be opened"));
     return -1;
   }
 
@@ -97,37 +101,18 @@ int read_file(struct file_struct *file, char *error_buffer)
     return -1;
   }
 
-  if ((nbytes_read = read(file->fd, file_content_buffer, MAXFILEDATA)) == -1)
+  if ((nbytes_read = read(file->fd, content_buffer, MAXFILEDATA)) == -1)
   {
-    copy_string("File cannot be read", error_buffer);
+    copy_string("File cannot be read", error_buffer,
+                sizeof("File cannot be read"));
     return -1;
   }
+
+  copy_string(&file->content, content_buffer, sizeof(content_buffer));
   file->size += nbytes_read;
-
-  /* For copying large blocks of data use memcpy()/strcpy() instead of
-     copy_string(), it's much more efficient: memcpy(*to, *from, sizeof(*from))
-
-     However these functions are not safe, need to ensure certain criteria are
-     met before using them. */
-  if (file->size < MAXFILEDATA)
-  {
-    // copy buffer content to file and free empty space
-    copy_string(file_content_buffer, file->content);
-    file->content = realloc(file->content, file->size);
-  }
-  else if (nbytes_read == MAXFILEDATA &&
-           ((int)file_content_buffer[nbytes_read]) != EOF)
-  {
-    int temp = MAXFILEDATA;
-    copy_string(file_content_buffer, file->content);
-    // allocate an additional MAXFILEDATA bytes
-    file->content = realloc(file->content, file->size + MAXFILEDATA);
-    nbytes_read = read(file->fd, file_content_buffer, MAXFILEDATA);
-    file->size += nbytes_read;
-  }
   *(file->content + file->size) = 0;
 
-  return nbytes_read;
+  return file->size;
 }
 
 /* Check if file at PATH is a regular file. If false, return 0 and
@@ -140,7 +125,8 @@ int is_regular_file(struct file_struct *file, char *error_buffer)
   // retrieve file attributes using stat() and store it in struct file_stat_info
   if (stat(file->path, &file_stat_info) == -1)
   {
-    copy_string("File cannot be accessed", error_buffer);
+    copy_string("File cannot be accessed", error_buffer,
+                sizeof("File cannot be accessed"));
     return is_reg_file;
   }
 
@@ -150,16 +136,16 @@ int is_regular_file(struct file_struct *file, char *error_buffer)
   }
   else if (S_ISDIR(file_stat_info.st_mode))
   {
-    copy_string("Is a directory", error_buffer);
+    copy_string("Is a directory", error_buffer, sizeof("Is a directory"));
   }
   else
   {
-    copy_string("Invalid file type", error_buffer);
+    copy_string("Invalid file type", error_buffer, sizeof("Invalid file type"));
   }
   return is_reg_file;
 }
 
-/* Open file in read-only mode and return it's file descriptor, or -1 for
+/* Open FILE in read-only mode and return it's file descriptor, or -1 for
    error. */
 int open_file(struct file_struct *file)
 {
@@ -176,14 +162,9 @@ int open_file(struct file_struct *file)
 }
 
 /* Copy contents of IN into OUT. */
-void copy_string(char *in, char *out)
+void copy_string(char **out, char *in, size_t in_size)
 {
-  int i = 0;
-  while (*(in + i) != '\0')
-  {
-    *(out + i) = *(in + i);
-    i++;
-  }
-  // null terminate 'out'
-  *(out + i) = 0;
+  *out = realloc(*out, in_size);
+  memmove(*out, in, in_size);
+  *(*out + in_size) = 0;
 }
