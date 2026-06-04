@@ -24,10 +24,8 @@ The `-g` flag is only necessary if debugging with gdb.
 The executable can be run with:
 
 ```bash
-./cat.out
+./cat.out [FILE]
 ```
-
-Then, enter the filename and press enter.
 
 # Limitations
 
@@ -35,6 +33,5 @@ Then, enter the filename and press enter.
 
 These features are currently not supported:
 
-- Command-line arguments/input
-- Multiple files at once as input
 - Reading from standard input if no file operand is specified or file operand is `-`
+- Running with options: `-e`, `-t`, `-v`
