@@ -1,6 +1,4 @@
-#include <endian.h>
 #include <fcntl.h>
-#include <linux/limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,7 +20,9 @@ struct file_struct
 int open_file(struct file_struct *file, char *error_buffer);
 int is_regular_file(struct file_struct *file, char *error_buffer);
 int read_file(struct file_struct *file, char *error_buffer);
-void copy_string(char *out, char *in, size_t in_size);
+int write_from_file(struct file_struct *file, int bytes_read,
+                    char *error_buffer);
+void copy_string(char *in, char *out, size_t in_size);
 
 /* Custom error messages: Any function that takes ERROR_BUFFER as an arg writes
    an error message into it. If said function returns -1, the caller should
@@ -33,7 +33,8 @@ void copy_string(char *out, char *in, size_t in_size);
 int main(int argc, char **argv)
 {
   struct file_struct file;
-  int file_bytes;
+  int read_bytes;
+  int write_bytes;
   int i = 1;
   int arg_length;
 
@@ -57,11 +58,17 @@ int main(int argc, char **argv)
       return -1;
     }
 
-    while ((file_bytes = read_file(&file, error_buffer)) > 0)
+    while ((read_bytes = read_file(&file, error_buffer)) > 0)
     {
-      write(STDIN_FILENO, file.content, file_bytes);
+      if ((write_bytes = write_from_file(&file, read_bytes, error_buffer)) ==
+          -1)
+      {
+        printf("Error: %s\n", error_buffer);
+        return -1;
+      }
     }
-    if (file_bytes == -1)
+
+    if (read_bytes == -1)
     {
       printf("Error: %s\n", error_buffer);
       return -1;
@@ -70,8 +77,6 @@ int main(int argc, char **argv)
     i++;
   }
 
-  // free(file.path);
-  // free(file.content);
   close(file.fd);
 }
 
@@ -140,6 +145,21 @@ int read_file(struct file_struct *file, char *error_buffer)
   *(file->content + nbytes) = 0;
 
   return nbytes;
+}
+
+int write_from_file(struct file_struct *file, int bytes_read,
+                    char *error_buffer)
+{
+  int write_bytes;
+
+  if ((write_bytes = write(STDOUT_FILENO, file->content, bytes_read)) == -1)
+  {
+    copy_string("File content cannot be written", error_buffer,
+                sizeof("File content cannot be written"));
+    return -1;
+  }
+
+  return write_bytes;
 }
 
 /* Copy contents of IN to OUT */
