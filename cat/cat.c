@@ -43,6 +43,7 @@ int main(int argc, char **argv)
   char error_buffer[MAXERROR + 1];
   file.size = 0;
 
+  // if no file is specified
   if (argc == 1)
   {
     file.fd = STDIN_FILENO;
@@ -71,7 +72,12 @@ int main(int argc, char **argv)
     arg_length = strcspn(argv[i], " ");
     copy_string(argv[i], file.path, arg_length);
 
-    if ((file.fd = open_file(&file, error_buffer)) == -1)
+    // checking if file operand is '-'
+    if (strcmp(argv[i], "-") == 0)
+    {
+      file.fd = STDIN_FILENO;
+    }
+    else if ((file.fd = open_file(&file, error_buffer)) == -1)
     {
       printf("Error: %s\n", error_buffer);
       return -1;
@@ -82,6 +88,7 @@ int main(int argc, char **argv)
       return -1;
     }
 
+    // reading file content and writing to stdout
     while ((read_bytes = read_file(&file, error_buffer)) > 0)
     {
       if ((write_bytes = write_from_file(&file, read_bytes, error_buffer)) ==
