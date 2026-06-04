@@ -19,7 +19,6 @@ struct file_struct
   size_t size;
 };
 
-ssize_t read_input(struct file_struct *file);
 int open_file(struct file_struct *file, char *error_buffer);
 int is_regular_file(struct file_struct *file, char *error_buffer);
 int read_file(struct file_struct *file, char *error_buffer);
