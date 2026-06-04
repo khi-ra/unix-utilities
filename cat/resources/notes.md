@@ -8,28 +8,34 @@
   - 'address' catches memory errors and 'undefined' catches code resulting in undefined behaviour
 - use gdb for debugging; learn basics of it
 - implement flags too: -n,-e,-s, etc;
-  - look into getopt
+  - look into `getopt()`
 
 # Project Notes
 
-- trying to change the file position on a file that doesn't support random access results in an ESPIPE error
+## Implementation Decisions
+
+### Error Handling
+
+I could create an error struct that holds:
+  1. `int error_num; /* 0 for success, -1 for error */`
+  2. `char *error_message `
+
+When a function encounters an error:
+  - sets `error_num` = -1
+  - writes into `error_message`
+  - returns `error_num`  
+
+if I combine this struct with relevant functions I could re-use the error handling pattern.
+This is similar to `errno`, `err()`, `error()`; I'll look into them to see if i can just use them.
+
+## General info on Cat 
+- trying to change the file position on a file that doesn't support random access results in an error
 - if the '-' operand is used multiple times and stdin is regular file, the output after the first is just 'null'
 - used `cat` on mp4 and dmg files, seems like it prints out the raw sequence of bytes of a file
 - if stdout is a regular file and is the same as any file operand, this can be treated as an error
 - when taking stdin, it should only stop once ctrl+d is pressed
-- i should separate input by empty space to allow multiple files as input; might have to parse input char-by-char
-  - i could use threads to read multiple files simultaneously, then print them one at a time in sequential order
-  - may have to dynamically allocate memory for file content to fit entire large files into one buffer
+- the program will receive each file name as separate argv element 
 
-## Usage:
-
-1. user runs executable with filename as argument
-2. program parses input and opens file
-3. if file exists:
-   - reads raw file-bytes into buffer
-   - write content from buffer to stdout
-4. otherwise:
-   - print error to sderr
 
 # Additional learning resources
 

@@ -15,16 +15,18 @@ struct file_struct
   char *content;
   char *path;
   size_t size;
+  off_t offset;
 };
 
 ssize_t read_input(struct file_struct *file);
 int read_file(struct file_struct *file, char *error_buffer);
 int is_regular_file(struct file_struct *file, char *error_buffer);
 int open_file(struct file_struct *file);
-void copy_string(char **out, char *in, size_t nbytes);
+void copy_from_file(char **out, char *in, size_t nbytes);
+void copy_string(char *out, char *in, size_t in_size);
 
-/* Custom Error messages: Any function that takes ERROR_BUFFER as an arg writes
-   an error message into it. If said function then returns -1, the caller should
+/* Custom error messages: Any function that takes ERROR_BUFFER as an arg writes
+   an error message into it. If said function returns -1, the caller should
    check this buffer for specific information about the error. */
 
 /* Accept files as command-line input and display their content out to standard
@@ -33,28 +35,31 @@ int main(int argc, char **argv)
 {
   struct file_struct file;
   int input_size;
-  int file_size;
+  int read_bytes;
 
   // +1 for null termination
-  /* set all pointers to NULL and realloc when writing to them */
-  char *error_buffer = malloc(MAXERROR + 1);
-  file.path = NULL;
-  file.content = NULL;
+  char error_buffer[MAXERROR];
+  file.content = malloc(MAXFILEDATA + 1);
+  file.path = malloc(MAXINPUT + 1);
   file.size = 0;
 
-  if ((input_size = read_input(&file)) > 0 &&
-      (file_size = read_file(&file, error_buffer)) > 0)
+  if ((input_size = read_input(&file)) > 0)
   {
     printf("input path: %s\n-----------\n", file.path);
-    printf("file size: %d\n-----------\n", file_size);
-    printf("file content: %s\n", file.content);
+
+    /* Here, read_file() repeatedly calls open_file(), opening a new file
+       every time with a new offset causing an infinite loop. I need to call
+       open_file() from main and only run read_file() in the loop. */
+    while ((read_bytes = read_file(&file, error_buffer)) > 0)
+    {
+      write(STDOUT_FILENO, file.content, read_bytes);
+    }
   }
   else
   {
     printf("Error: %s\n", error_buffer);
   }
 
-  free(error_buffer);
   free(file.path);
   free(file.content);
 }
@@ -65,7 +70,6 @@ ssize_t read_input(struct file_struct *file)
 {
   ssize_t nbytes = -1;
 
-  // read MAXINPUT chars from stdin and store in buffer
   if ((nbytes = read(STDIN_FILENO, file->path, MAXINPUT)) == -1)
   {
     perror("read failed");
@@ -73,21 +77,17 @@ ssize_t read_input(struct file_struct *file)
   }
 
   file->path = realloc(file->path, nbytes);
-
-  // strip trailing '\n' and null terminate buffer
-  int path_length = strcspn(file->path, "\n");
-  *(file->path + path_length) = 0;
+  *(file->path + (nbytes - 1)) = 0;
 
   return nbytes;
 }
 
-/* Read file at FILE->path and store it's content into FILE->content. Upon
+/* Read file and store it's content into FILE.content. Upon
    error, return -1 and write error message into ERROR_BUFFER.
    Otherwise return number of bytes read. */
 int read_file(struct file_struct *file, char *error_buffer)
 {
-  char content_buffer[MAXFILEDATA + 1];
-  int nbytes_read;
+  int nbytes;
 
   if ((file->fd = open_file(file)) == -1)
   {
@@ -101,21 +101,18 @@ int read_file(struct file_struct *file, char *error_buffer)
     return -1;
   }
 
-  if ((nbytes_read = read(file->fd, content_buffer, MAXFILEDATA)) == -1)
+  if ((nbytes = read(file->fd, file->content, MAXFILEDATA)) == -1)
   {
     copy_string("File cannot be read", error_buffer,
                 sizeof("File cannot be read"));
     return -1;
   }
+  *(file->content + nbytes) = 0;
 
-  copy_string(&file->content, content_buffer, sizeof(content_buffer));
-  file->size += nbytes_read;
-  *(file->content + file->size) = 0;
-
-  return file->size;
+  return nbytes;
 }
 
-/* Check if file at PATH is a regular file. If false, return 0 and
+/* Check if FILE is a regular file. If false, return 0 and
    write error message into ERROR_BUFFER. Otherwise return 1. */
 int is_regular_file(struct file_struct *file, char *error_buffer)
 {
@@ -142,6 +139,7 @@ int is_regular_file(struct file_struct *file, char *error_buffer)
   {
     copy_string("Invalid file type", error_buffer, sizeof("Invalid file type"));
   }
+
   return is_reg_file;
 }
 
@@ -161,10 +159,10 @@ int open_file(struct file_struct *file)
   return file->fd;
 }
 
-/* Copy contents of IN into OUT. */
-void copy_string(char **out, char *in, size_t in_size)
+/* Copy contents of IN to OUT */
+void copy_string(char *out, char *in, size_t in_size)
 {
-  *out = realloc(*out, in_size);
-  memmove(*out, in, in_size);
-  *(*out + in_size) = 0;
+  // out = realloc(out, in_size);
+  memmove(out, in, in_size);
+  *(out + in_size) = 0;
 }
