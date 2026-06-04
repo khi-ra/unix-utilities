@@ -33,5 +33,5 @@ The executable can be run with:
 
 These features are currently not supported:
 
-- Reading from standard input if no file operand is specified or file operand is `-`
+- Reading from standard input if file operand is `-`
 - Running with options: `-e`, `-t`, `-v`
