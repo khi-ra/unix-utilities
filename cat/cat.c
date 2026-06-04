@@ -20,10 +20,9 @@ struct file_struct
 };
 
 ssize_t read_input(struct file_struct *file);
-int read_file(struct file_struct *file, char *error_buffer);
-int is_regular_file(struct file_struct *file, char *error_buffer);
 int open_file(struct file_struct *file, char *error_buffer);
-void copy_from_file(char **out, char *in, size_t nbytes);
+int is_regular_file(struct file_struct *file, char *error_buffer);
+int read_file(struct file_struct *file, char *error_buffer);
 void copy_string(char *out, char *in, size_t in_size);
 
 /* Custom error messages: Any function that takes ERROR_BUFFER as an arg writes
@@ -62,9 +61,7 @@ int main(int argc, char **argv)
 
   while ((read_bytes = read_file(&file, error_buffer)) > 0)
   {
-    printf("input path: %s\n-----------\n", file.path);
-    printf("file size: %d\n-----------\n", read_bytes);
-    printf("file content: %s\n", file.content);
+    write(STDIN_FILENO, file.content, read_bytes);
   }
   if (read_bytes == -1)
   {
@@ -93,22 +90,22 @@ ssize_t read_input(struct file_struct *file)
   return nbytes;
 }
 
-/* Read file and store it's content into FILE.content. Upon
-   error, return -1 and write error message into ERROR_BUFFER.
-   Otherwise return number of bytes read. */
-int read_file(struct file_struct *file, char *error_buffer)
+/* Open FILE in read-only mode and return it's file descriptor, or -1 for
+   error. */
+int open_file(struct file_struct *file, char *error_buffer)
 {
-  int nbytes;
+  int dir_fd = open("./", O_RDONLY);
 
-  if ((nbytes = read(file->fd, file->content, MAXFILEDATA)) == -1)
+  // if path is absolute, 'dir_fd' is ignored and only the path is used
+  if (dir_fd == -1 || (file->fd = openat(dir_fd, file->path, O_RDONLY)) == -1)
   {
-    copy_string("File cannot be read", error_buffer,
-                sizeof("File cannot be read"));
+    copy_string("File cannot be opened", error_buffer,
+                sizeof("File cannot be opened"));
     return -1;
   }
-  *(file->content + nbytes) = 0;
 
-  return nbytes;
+  close(dir_fd);
+  return file->fd;
 }
 
 /* Check if FILE is a regular file. If false, return 0 and
@@ -142,22 +139,22 @@ int is_regular_file(struct file_struct *file, char *error_buffer)
   return is_reg_file;
 }
 
-/* Open FILE in read-only mode and return it's file descriptor, or -1 for
-   error. */
-int open_file(struct file_struct *file, char *error_buffer)
+/* Read file and store it's content into FILE.content. Upon
+   error, return -1 and write error message into ERROR_BUFFER.
+   Otherwise return number of bytes read. */
+int read_file(struct file_struct *file, char *error_buffer)
 {
-  int dir_fd = open("./", O_RDONLY);
+  int nbytes;
 
-  // if path is absolute, 'dir_fd' is ignored and only the path is used
-  if (dir_fd == -1 || (file->fd = openat(dir_fd, file->path, O_RDONLY)) == -1)
+  if ((nbytes = read(file->fd, file->content, MAXFILEDATA)) == -1)
   {
-    copy_string("File cannot be opened", error_buffer,
-                sizeof("File cannot be opened"));
+    copy_string("File cannot be read", error_buffer,
+                sizeof("File cannot be read"));
     return -1;
   }
+  *(file->content + nbytes) = 0;
 
-  close(dir_fd);
-  return file->fd;
+  return nbytes;
 }
 
 /* Copy contents of IN to OUT */
