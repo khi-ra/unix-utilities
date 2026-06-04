@@ -1,3 +1,4 @@
+#include <endian.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,7 +22,7 @@ struct file_struct
 ssize_t read_input(struct file_struct *file);
 int read_file(struct file_struct *file, char *error_buffer);
 int is_regular_file(struct file_struct *file, char *error_buffer);
-int open_file(struct file_struct *file);
+int open_file(struct file_struct *file, char *error_buffer);
 void copy_from_file(char **out, char *in, size_t nbytes);
 void copy_string(char *out, char *in, size_t in_size);
 
@@ -34,30 +35,41 @@ void copy_string(char *out, char *in, size_t in_size);
 int main(int argc, char **argv)
 {
   struct file_struct file;
-  int input_size;
+  int input;
   int read_bytes;
 
   // +1 for null termination
-  char error_buffer[MAXERROR];
+  char error_buffer[MAXERROR + 1];
   file.content = malloc(MAXFILEDATA + 1);
   file.path = malloc(MAXINPUT + 1);
   file.size = 0;
 
-  if ((input_size = read_input(&file)) > 0)
-  {
-    printf("input path: %s\n-----------\n", file.path);
-
-    /* Here, read_file() repeatedly calls open_file(), opening a new file
-       every time with a new offset causing an infinite loop. I need to call
-       open_file() from main and only run read_file() in the loop. */
-    while ((read_bytes = read_file(&file, error_buffer)) > 0)
-    {
-      write(STDOUT_FILENO, file.content, read_bytes);
-    }
-  }
-  else
+  if ((input = read_input(&file)) == -1)
   {
     printf("Error: %s\n", error_buffer);
+    return -1;
+  }
+  else if ((file.fd = open_file(&file, error_buffer)) == -1)
+  {
+    printf("Error: %s\n", error_buffer);
+    return -1;
+  }
+  else if (!is_regular_file(&file, error_buffer))
+  {
+    printf("Error: %s\n", error_buffer);
+    return -1;
+  }
+
+  while ((read_bytes = read_file(&file, error_buffer)) > 0)
+  {
+    printf("input path: %s\n-----------\n", file.path);
+    printf("file size: %d\n-----------\n", read_bytes);
+    printf("file content: %s\n", file.content);
+  }
+  if (read_bytes == -1)
+  {
+    printf("Error: %s\n", error_buffer);
+    return -1;
   }
 
   free(file.path);
@@ -75,10 +87,9 @@ ssize_t read_input(struct file_struct *file)
     perror("read failed");
     return nbytes;
   }
-
   file->path = realloc(file->path, nbytes);
-  *(file->path + (nbytes - 1)) = 0;
 
+  *(file->path + (nbytes - 1)) = 0;
   return nbytes;
 }
 
@@ -88,18 +99,6 @@ ssize_t read_input(struct file_struct *file)
 int read_file(struct file_struct *file, char *error_buffer)
 {
   int nbytes;
-
-  if ((file->fd = open_file(file)) == -1)
-  {
-    copy_string("File cannot be opened", error_buffer,
-                sizeof("File cannot be opened"));
-    return -1;
-  }
-
-  if (!is_regular_file(file, error_buffer))
-  {
-    return -1;
-  }
 
   if ((nbytes = read(file->fd, file->content, MAXFILEDATA)) == -1)
   {
@@ -145,13 +144,15 @@ int is_regular_file(struct file_struct *file, char *error_buffer)
 
 /* Open FILE in read-only mode and return it's file descriptor, or -1 for
    error. */
-int open_file(struct file_struct *file)
+int open_file(struct file_struct *file, char *error_buffer)
 {
   int dir_fd = open("./", O_RDONLY);
 
   // if path is absolute, 'dir_fd' is ignored and only the path is used
   if (dir_fd == -1 || (file->fd = openat(dir_fd, file->path, O_RDONLY)) == -1)
   {
+    copy_string("File cannot be opened", error_buffer,
+                sizeof("File cannot be opened"));
     return -1;
   }
 
@@ -160,9 +161,8 @@ int open_file(struct file_struct *file)
 }
 
 /* Copy contents of IN to OUT */
-void copy_string(char *out, char *in, size_t in_size)
+void copy_string(char *in, char *out, size_t in_size)
 {
-  // out = realloc(out, in_size);
   memmove(out, in, in_size);
   *(out + in_size) = 0;
 }
