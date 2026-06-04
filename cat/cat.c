@@ -12,6 +12,7 @@
 struct file_struct
 {
   int fd;
+  // +1 for null termination character
   char content[MAXFILEDATA + 1];
   char path[MAXINPUT + 1];
   size_t size;
@@ -41,6 +42,29 @@ int main(int argc, char **argv)
   // +1 for null termination
   char error_buffer[MAXERROR + 1];
   file.size = 0;
+
+  if (argc == 1)
+  {
+    file.fd = STDIN_FILENO;
+
+    while ((read_bytes = read_file(&file, error_buffer)) > 0)
+    {
+      if ((write_bytes = write_from_file(&file, read_bytes, error_buffer)) ==
+          -1)
+      {
+        printf("Error: %s\n", error_buffer);
+        return -1;
+      }
+    }
+
+    if (read_bytes == -1)
+    {
+      printf("Error: %s\n", error_buffer);
+      return -1;
+    }
+
+    return 0;
+  }
 
   while (argv[i] && i < argc)
   {
@@ -142,7 +166,7 @@ int read_file(struct file_struct *file, char *error_buffer)
                 sizeof("File cannot be read"));
     return -1;
   }
-  *(file->content + nbytes) = 0;
+  file->content[nbytes] = 0;
 
   return nbytes;
 }
