@@ -1,5 +1,6 @@
 #include <endian.h>
 #include <fcntl.h>
+#include <linux/limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,10 +14,9 @@
 struct file_struct
 {
   int fd;
-  char *content;
-  char *path;
+  char content[MAXFILEDATA + 1];
+  char path[MAXINPUT + 1];
   size_t size;
-  off_t offset;
 };
 
 ssize_t read_input(struct file_struct *file);
@@ -34,60 +34,46 @@ void copy_string(char *out, char *in, size_t in_size);
 int main(int argc, char **argv)
 {
   struct file_struct file;
-  int input;
-  int read_bytes;
+  int file_bytes;
+  int i = 1;
+  int arg_length;
 
   // +1 for null termination
   char error_buffer[MAXERROR + 1];
-  file.content = malloc(MAXFILEDATA + 1);
-  file.path = malloc(MAXINPUT + 1);
   file.size = 0;
 
-  if ((input = read_input(&file)) == -1)
+  while (argv[i] && i < argc)
   {
-    printf("Error: %s\n", error_buffer);
-    return -1;
-  }
-  else if ((file.fd = open_file(&file, error_buffer)) == -1)
-  {
-    printf("Error: %s\n", error_buffer);
-    return -1;
-  }
-  else if (!is_regular_file(&file, error_buffer))
-  {
-    printf("Error: %s\n", error_buffer);
-    return -1;
+    arg_length = strcspn(argv[i], " ");
+    copy_string(argv[i], file.path, arg_length);
+
+    if ((file.fd = open_file(&file, error_buffer)) == -1)
+    {
+      printf("Error: %s\n", error_buffer);
+      return -1;
+    }
+    else if (!is_regular_file(&file, error_buffer))
+    {
+      printf("Error: %s\n", error_buffer);
+      return -1;
+    }
+
+    while ((file_bytes = read_file(&file, error_buffer)) > 0)
+    {
+      write(STDIN_FILENO, file.content, file_bytes);
+    }
+    if (file_bytes == -1)
+    {
+      printf("Error: %s\n", error_buffer);
+      return -1;
+    }
+
+    i++;
   }
 
-  while ((read_bytes = read_file(&file, error_buffer)) > 0)
-  {
-    write(STDIN_FILENO, file.content, read_bytes);
-  }
-  if (read_bytes == -1)
-  {
-    printf("Error: %s\n", error_buffer);
-    return -1;
-  }
-
-  free(file.path);
-  free(file.content);
-}
-
-/* Read input from stdin and store it in FILE->path.
-   Return the number of bytes read or -1 for error. */
-ssize_t read_input(struct file_struct *file)
-{
-  ssize_t nbytes = -1;
-
-  if ((nbytes = read(STDIN_FILENO, file->path, MAXINPUT)) == -1)
-  {
-    perror("read failed");
-    return nbytes;
-  }
-  file->path = realloc(file->path, nbytes);
-
-  *(file->path + (nbytes - 1)) = 0;
-  return nbytes;
+  // free(file.path);
+  // free(file.content);
+  close(file.fd);
 }
 
 /* Open FILE in read-only mode and return it's file descriptor, or -1 for
