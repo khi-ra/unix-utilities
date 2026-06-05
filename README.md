@@ -19,13 +19,16 @@ The `-fsanitize=address` flag is ommitted as it cannot be used alongside gdb (GN
 
 The `-g` flag is only necessary if debugging with gdb.
 
-## Executing
+## Running The Program
 
 The executable can be run with:
 
 ```bash
 ./cat.out [FILE]
 ```
+
+- multiple files can be taken as input, each separated by a space
+- if no file is specified or file operand is `-`, the program takes input from standard input
 
 # Limitations
 
