@@ -40,11 +40,11 @@ The program defines an enum of error codes `enum error_code`:
 ```C
 enum error_code 
 {
-  ERR_FOPEN = 1,
-  ERR_FREAD = 2,
-  ERR_FWRITE = 4,
-  ERR_FACCESS = 4,
-  ERR_FINVAL = 5,
+  ERR_FOPEN = 1,    /* Error opening file. */
+  ERR_FREAD = 2,    /* Error reading file. */
+  ERR_FWRITE = 4,   /* Error writing from file to stdout. */
+  ERR_FACCESS = 4,  /* Error accessing file; no permissions/doesn't exist. */
+  ERR_FINVAL = 5,   /* Invalid file type; non-regular file. */
 };
 ```
 Upon error, the program exits with the relevant error code.  
