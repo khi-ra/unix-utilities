@@ -1,3 +1,4 @@
+#include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,15 +54,13 @@ int main(int argc, char **argv)
       if ((write_bytes = write_from_file(&file, read_bytes, error_buffer)) ==
           -1)
       {
-        printf("Error: %s\n", error_buffer);
-        return -1;
+        errx(EXIT_FAILURE, "%s: %s", file.path, error_buffer);
       }
     }
 
     if (read_bytes == -1)
     {
-      printf("Error: %s\n", error_buffer);
-      return -1;
+      errx(EXIT_FAILURE, "%s: %s", file.path, error_buffer);
     }
 
     return 0;
@@ -72,20 +71,18 @@ int main(int argc, char **argv)
     arg_length = strcspn(argv[i], " ");
     copy_string(argv[i], file.path, arg_length);
 
-    // checking if file operand is '-'
+    // if file operand is '-'
     if (strcmp(argv[i], "-") == 0)
     {
       file.fd = STDIN_FILENO;
     }
     else if ((file.fd = open_file(&file, error_buffer)) == -1)
     {
-      printf("Error: %s\n", error_buffer);
-      return -1;
+      errx(EXIT_FAILURE, "%s: %s", file.path, error_buffer);
     }
     else if (!is_regular_file(&file, error_buffer))
     {
-      printf("Error: %s\n", error_buffer);
-      return -1;
+      errx(EXIT_FAILURE, "%s: %s", file.path, error_buffer);
     }
 
     // reading file content and writing to stdout
@@ -94,15 +91,13 @@ int main(int argc, char **argv)
       if ((write_bytes = write_from_file(&file, read_bytes, error_buffer)) ==
           -1)
       {
-        printf("Error: %s\n", error_buffer);
-        return -1;
+        errx(EXIT_FAILURE, "%s: %s", file.path, error_buffer);
       }
     }
 
     if (read_bytes == -1)
     {
-      printf("Error: %s\n", error_buffer);
-      return -1;
+      errx(EXIT_FAILURE, "%s: %s", file.path, error_buffer);
     }
 
     i++;
