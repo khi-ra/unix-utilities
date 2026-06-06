@@ -10,6 +10,15 @@
 #define MAXINPUT 256
 #define MAXERROR 256
 
+enum error_code
+{
+  ERR_FOPEN = 1,
+  ERR_FREAD = 2,
+  ERR_FWRITE = 4,
+  ERR_FACCESS = 4,
+  ERR_FINVAL = 5,
+};
+
 struct file_struct
 {
   int fd;
@@ -29,6 +38,8 @@ void copy_string(char *in, char *out, size_t in_size);
 /* Custom error messages: Any function that takes ERROR_BUFFER as an arg writes
    an error message into it. If said function returns -1, the caller should
    check this buffer for specific information about the error. */
+
+const enum error_code error;
 
 /* Accept files as command-line input and display their content out to standard
    output. */
@@ -54,13 +65,13 @@ int main(int argc, char **argv)
       if ((write_bytes = write_from_file(&file, read_bytes, error_buffer)) ==
           -1)
       {
-        errx(EXIT_FAILURE, "%s: %s", file.path, error_buffer);
+        errx(ERR_FWRITE, "%s: %s", file.path, error_buffer);
       }
     }
 
     if (read_bytes == -1)
     {
-      errx(EXIT_FAILURE, "%s: %s", file.path, error_buffer);
+      errx(ERR_FREAD, "%s: %s", file.path, error_buffer);
     }
 
     return 0;
@@ -78,11 +89,11 @@ int main(int argc, char **argv)
     }
     else if ((file.fd = open_file(&file, error_buffer)) == -1)
     {
-      errx(EXIT_FAILURE, "%s: %s", file.path, error_buffer);
+      errx(ERR_FOPEN, "%s: %s", file.path, error_buffer);
     }
     else if (!is_regular_file(&file, error_buffer))
     {
-      errx(EXIT_FAILURE, "%s: %s", file.path, error_buffer);
+      errx(ERR_FINVAL, "%s: %s", file.path, error_buffer);
     }
 
     // reading file content and writing to stdout
@@ -91,13 +102,13 @@ int main(int argc, char **argv)
       if ((write_bytes = write_from_file(&file, read_bytes, error_buffer)) ==
           -1)
       {
-        errx(EXIT_FAILURE, "%s: %s", file.path, error_buffer);
+        errx(ERR_FWRITE, "%s: %s", file.path, error_buffer);
       }
     }
 
     if (read_bytes == -1)
     {
-      errx(EXIT_FAILURE, "%s: %s", file.path, error_buffer);
+      errx(ERR_FREAD, "%s: %s", file.path, error_buffer);
     }
 
     i++;
