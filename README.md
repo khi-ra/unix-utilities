@@ -42,7 +42,7 @@ enum error_code
 {
   ERR_FOPEN = 1,    /* Error opening file. */
   ERR_FREAD = 2,    /* Error reading file. */
-  ERR_FWRITE = 4,   /* Error writing from file to stdout. */
+  ERR_FWRITE = 3,   /* Error writing from file to stdout. */
   ERR_FACCESS = 4,  /* Error accessing file; no permissions/doesn't exist. */
   ERR_FINVAL = 5,   /* Invalid file type; non-regular file. */
 };

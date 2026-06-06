@@ -14,7 +14,7 @@ enum error_code
 {
   ERR_FOPEN = 1,
   ERR_FREAD = 2,
-  ERR_FWRITE = 4,
+  ERR_FWRITE = 3,
   ERR_FACCESS = 4,
   ERR_FINVAL = 5,
 };
