@@ -7,7 +7,13 @@
 #define MAXINPUT 1024
 #define MAXERROR 1024
 
-extern struct file_struct file;
+typedef struct
+{
+  int fd;
+  char *content;
+  char *path;
+  size_t size;
+} file_struct;
 
 /* Open FILE in read-only mode and return it's file descriptor, or -1 for
    error. */

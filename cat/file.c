@@ -1,20 +1,9 @@
 #include "file.h"
+#include "customstring.h"
 #include <err.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
-#define MAXFILEDATA 4096
-#define MAXINPUT 1024
-#define MAXERROR 1024
-
-typedef struct
-{
-  int fd;
-  char *content;
-  char *path;
-  size_t size;
-} file_struct;
 
 /* Open FILE in read-only mode and return it's file descriptor, or -1 for
    error. */
