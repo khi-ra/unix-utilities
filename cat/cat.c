@@ -1,3 +1,4 @@
+#include "file.h"
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -5,10 +6,6 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
-#define MAXFILEDATA 4096
-#define MAXINPUT 1024
-#define MAXERROR 1024
 
 enum error_code
 {
@@ -19,24 +16,9 @@ enum error_code
   ERR_FINVAL = 5,
 };
 
-typedef struct
-{
-  int fd;
-  char *content;
-  char *path;
-  size_t size;
-} file_struct;
-
-int open_file(file_struct *file, char **error_buffer);
-int is_regular_file(file_struct *file, char **error_buffer);
-int read_file(file_struct *file, char **error_buffer);
 int write_file_content(file_struct *file, int nbytes_read, char **error_buffer);
 void write_error(char *error_message, char **error_buffer);
 void copy_string(char *in, char **out, size_t in_size);
-
-/* Custom error messages: Any function that takes ERROR_BUFFER as an arg writes
-   an error message into it. If said function returns -1, the caller should
-   check this buffer for specific information about the error. */
 
 const enum error_code error;
 
@@ -99,22 +81,6 @@ int main(int argc, char **argv)
   close(file.fd);
 }
 
-/* Open FILE in read-only mode and return it's file descriptor, or -1 for
-   error. */
-int open_file(file_struct *file, char **error_buffer)
-{
-  int dir_fd = open("./", O_RDONLY);
-
-  // if path is absolute, 'dir_fd' is ignored and only the path is used
-  if (dir_fd == -1 || (file->fd = openat(dir_fd, file->path, O_RDONLY)) == -1)
-  {
-    write_error("File cannot be opened", error_buffer);
-  }
-
-  close(dir_fd);
-  return file->fd;
-}
-
 /* Check if FILE is a regular file. If false, return 0 and
    write error message into ERROR_BUFFER. Otherwise return 1. */
 int is_regular_file(file_struct *file, char **error_buffer)
@@ -145,26 +111,6 @@ int is_regular_file(file_struct *file, char **error_buffer)
   return is_reg_file;
 }
 
-/* Read file and store it's content into FILE.content. Upon
-   error, write error message into ERROR_BUFFER and return -1.
-   Otherwise, return number of bytes read. */
-int read_file(file_struct *file, char **error_buffer)
-{
-  char content_buff[MAXFILEDATA];
-  int nbytes;
-
-  if ((nbytes = read(file->fd, content_buff, MAXFILEDATA)) == -1)
-  {
-    write_error("File cannot be read", error_buffer);
-    return nbytes;
-  }
-
-  copy_string(content_buff, &file->content, nbytes);
-  file->content[nbytes] = 0;
-
-  return nbytes;
-}
-
 /* Write NBYTES_READ bytes of FILE to stdout. Upon error,
    write error message into ERROR_BUFFER and return -1.
    Otherwise, return number of bytes written. */
@@ -178,18 +124,4 @@ int write_file_content(file_struct *file, int nbytes_read, char **error_buffer)
   }
 
   return bytes_written;
-}
-
-/* Write ERROR_MESSAGE into ERROR_BUFFER. */
-void write_error(char *error_message, char **error_buffer)
-{
-  copy_string(error_message, error_buffer, strlen(error_message));
-}
-
-/* Copy contents of IN to dynamic string OUT */
-void copy_string(char *in, char **out, size_t in_size)
-{
-  *out = realloc(*out, in_size + 1);
-  memmove(*out, in, in_size);
-  *(*out + in_size) = 0;
 }
