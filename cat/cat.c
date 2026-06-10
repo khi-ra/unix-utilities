@@ -50,8 +50,8 @@ int main(int argc, char **argv)
   file.content = NULL;
   char *error_buffer = NULL;
 
-  int read_bytes;
-  int write_bytes;
+  int bytes_read;
+  int bytes_written;
 
   for (int i = 1; i <= argc; i++)
   {
@@ -80,18 +80,20 @@ int main(int argc, char **argv)
     }
 
     // read file content and write to stdout
-    while ((read_bytes = read_file(&file, &error_buffer)) > 0)
+    while ((bytes_read = read_file(&file, &error_buffer)) > 0)
     {
-      if ((write_bytes = write_file_content(&file, read_bytes, &error_buffer)) == -1)
+      if ((bytes_written = write_file_content(&file, bytes_read, &error_buffer)) == -1)
+      {
         errx(ERR_FWRITE, "%s: %s", file.path, error_buffer);
+      }
     }
 
-    if (read_bytes == -1)
+    if (bytes_read == -1)
     {
       errx(ERR_FREAD, "%s: %s", file.path, error_buffer);
     }
 
-    file.size += write_bytes;
+    file.size += bytes_written;
   }
 
   close(file.fd);
@@ -107,7 +109,6 @@ int open_file(file_struct *file, char **error_buffer)
   if (dir_fd == -1 || (file->fd = openat(dir_fd, file->path, O_RDONLY)) == -1)
   {
     write_error("File cannot be opened", error_buffer);
-    return -1;
   }
 
   close(dir_fd);
@@ -155,7 +156,7 @@ int read_file(file_struct *file, char **error_buffer)
   if ((nbytes = read(file->fd, content_buff, MAXFILEDATA)) == -1)
   {
     write_error("File cannot be read", error_buffer);
-    return -1;
+    return nbytes;
   }
 
   copy_string(content_buff, &file->content, nbytes);
@@ -169,17 +170,17 @@ int read_file(file_struct *file, char **error_buffer)
    Otherwise, return number of bytes written. */
 int write_file_content(file_struct *file, int nbytes_read, char **error_buffer)
 {
-  int write_bytes;
+  int bytes_written;
 
-  if ((write_bytes = write(STDOUT_FILENO, file->content, nbytes_read)) == -1)
+  if ((bytes_written = write(STDOUT_FILENO, file->content, nbytes_read)) == -1)
   {
     write_error("File content cannot be written", error_buffer);
-    return -1;
   }
 
-  return write_bytes;
+  return bytes_written;
 }
 
+/* Write ERROR_MESSAGE into ERROR_BUFFER. */
 void write_error(char *error_message, char **error_buffer)
 {
   copy_string(error_message, error_buffer, strlen(error_message));
