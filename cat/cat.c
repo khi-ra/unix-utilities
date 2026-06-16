@@ -1,8 +1,7 @@
 #include "file.h"
+#include "stringutil.h"
 #include <err.h>
 #include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -17,10 +16,7 @@ enum error_code
 };
 
 int write_file_content(file_struct *file, int nbytes_read, char **error_buffer);
-void write_error(char *error_message, char **error_buffer);
-void copy_string(char *in, char **out, size_t in_size);
-
-const enum error_code error;
+int is_regular_file(file_struct *file, char **error_buffer);
 
 /* Accept files as command-line input and display their content out to standard
    output. */
@@ -111,7 +107,7 @@ int is_regular_file(file_struct *file, char **error_buffer)
   return is_reg_file;
 }
 
-/* Write NBYTES_READ bytes of FILE to stdout. Upon error,
+/* Write NBYTES_READ bytes of FILE content to stdout. Upon error,
    write error message into ERROR_BUFFER and return -1.
    Otherwise, return number of bytes written. */
 int write_file_content(file_struct *file, int nbytes_read, char **error_buffer)

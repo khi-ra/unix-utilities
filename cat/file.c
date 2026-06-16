@@ -1,5 +1,5 @@
 #include "file.h"
-#include "customstring.h"
+#include "stringutil.h"
 #include <err.h>
 #include <fcntl.h>
 #include <sys/stat.h>
